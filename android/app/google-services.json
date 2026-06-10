@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "595150033801",
+    "project_id": "ct1-shop-20943",
+    "storage_bucket": "ct1-shop-20943.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:595150033801:android:566209ac494fb137700758",
+        "android_client_info": {
+          "package_name": "com.nnchaugiang.ecomerce"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "595150033801-upscsq8gdp7cc1ef3os405q4nthuuo95.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.nnchaugiang.ecomerce",
+            "certificate_hash": "c25e7285139612f994d50536b1a3925204d0a392"
+          }
+        },
+        {
+          "client_id": "595150033801-m9c352aiutp5ue1pa1kpupgl1i2506nd.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzySOFlO_UYFUiRxlJlE0RwKWtHav6oTs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "595150033801-m9c352aiutp5ue1pa1kpupgl1i2506nd.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
