@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../services/ecommerce_provider.dart';
+import '../services/auth_provider.dart';
 import 'reviews_screen.dart';
 
 class ProductDetailScreen extends StatefulWidget {
@@ -16,8 +17,14 @@ class ProductDetailScreen extends StatefulWidget {
 class _ProductDetailScreenState extends State<ProductDetailScreen> {
   String? _selectedSize;
   String _selectedColor = 'Black';
-  bool _isFavorite = false;
   int _currentImageIndex = 0;
+
+  // Gallery items with color metadata from DB
+  List<Map<String, dynamic>> _galleryItems = [];
+  List<String> _availableColors = [];
+
+  // PageController to sync carousel with color selection
+  late PageController _pageController;
 
   // Recommended products state
   List<dynamic> _recommendations = [];
@@ -28,15 +35,45 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   bool _showSupportInfo = false;
 
   final List<String> _sizes = ['XS', 'S', 'M', 'L', 'XL'];
-  final List<String> _colors = ['Black', 'White', 'Red', 'Blue', 'Grey'];
 
   @override
   void initState() {
     super.initState();
+    _pageController = PageController();
+    _initGalleryAndColors();
     _loadRecommendations();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<EcommerceProvider>().loadReviews(widget.product['id']?.toString() ?? '');
     });
+  }
+
+  /// Parse galleryItems from product data and build the available color list.
+  void _initGalleryAndColors() {
+    final raw = widget.product['galleryItems'];
+    if (raw != null && raw is List && raw.isNotEmpty) {
+      _galleryItems = raw
+          .map<Map<String, dynamic>>((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
+      // Build unique, ordered color list (skip empty strings)
+      final seen = <String>{};
+      for (final item in _galleryItems) {
+        final color = item['color'] as String?;
+        if (color != null && color.isNotEmpty && seen.add(color)) {
+          _availableColors.add(color);
+        }
+      }
+    }
+    // Fallback if DB has no colors yet
+    if (_availableColors.isEmpty) {
+      _availableColors = ['Black', 'White', 'Red', 'Blue', 'Grey'];
+    }
+    _selectedColor = _availableColors.first;
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadRecommendations() async {
@@ -220,6 +257,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   Widget build(BuildContext context) {
     final ecommerce = context.watch<EcommerceProvider>();
     final productId = widget.product['id']?.toString() ?? '';
+    final isFav = ecommerce.isFavorite(productId);
     final ratingStats = ecommerce.getProductRatingStats(productId);
     
     final double salePrice = (widget.product['salePrice'] as num?)?.toDouble() ?? 0.0;
@@ -253,7 +291,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
             icon: const Icon(Icons.share_outlined),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Product link copied to clipboard!')),
+                const SnackBar(duration: const Duration(seconds: 3), content: Text('Product link copied to clipboard!')),
               );
             },
           ),
@@ -274,10 +312,18 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   child: Hero(
                     tag: 'product-img-$productId',
                     child: PageView.builder(
+                      controller: _pageController,
                       itemCount: productImages.length,
                       onPageChanged: (index) {
                         setState(() {
                           _currentImageIndex = index;
+                          // Sync selected color when user swipes manually
+                          if (_galleryItems.isNotEmpty && index < _galleryItems.length) {
+                            final color = _galleryItems[index]['color'] as String?;
+                            if (color != null && color.isNotEmpty) {
+                              _selectedColor = color;
+                            }
+                          }
                         });
                       },
                       itemBuilder: (context, index) {
@@ -357,7 +403,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           icon: const Icon(Icons.keyboard_arrow_down, color: Colors.grey),
                           style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w500, fontSize: 14),
                           isExpanded: true,
-                          items: _colors.map((String value) {
+                          items: _availableColors.map((String value) {
                             return DropdownMenuItem<String>(
                               value: value,
                               child: Text(value),
@@ -366,6 +412,17 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                           onChanged: (val) {
                             if (val != null) {
                               setState(() => _selectedColor = val);
+                              // Animate carousel to the image matching this color
+                              final idx = _galleryItems.indexWhere(
+                                (g) => (g['color'] as String?) == val,
+                              );
+                              if (idx != -1) {
+                                _pageController.animateToPage(
+                                  idx,
+                                  duration: const Duration(milliseconds: 350),
+                                  curve: Curves.easeInOut,
+                                );
+                              }
                             }
                           },
                         ),
@@ -376,15 +433,23 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                   // Favorite Icon
                   GestureDetector(
                     onTap: () {
-                      setState(() {
-                        _isFavorite = !_isFavorite;
-                      });
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(_isFavorite ? 'Added to favorites!' : 'Removed from favorites!'),
-                          duration: const Duration(seconds: 1),
-                        ),
-                      );
+                      final isLoggedIn = context.read<AuthProvider>().isLoggedIn;
+                      if (isLoggedIn) {
+                        ecommerce.toggleFavorite(widget.product);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(!isFav ? 'Added to favorites!' : 'Removed from favorites!'),
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Vui lòng đăng nhập để lưu yêu thích'),
+                            duration: const Duration(seconds: 3),
+                          ),
+                        );
+                      }
                     },
                     child: Container(
                       height: 44,
@@ -402,8 +467,8 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       ),
                       child: Center(
                         child: Icon(
-                          _isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: _isFavorite ? const Color(0xFFE94560) : Colors.grey,
+                          isFav ? Icons.favorite : Icons.favorite_border,
+                          color: isFav ? const Color(0xFFE94560) : Colors.grey,
                           size: 22,
                         ),
                       ),
@@ -716,7 +781,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               clipBehavior: Clip.none,
               children: [
                 Container(
-                  height: 180,
+                  height: 160,
                   width: 150,
                   decoration: BoxDecoration(
                     color: Colors.white,
@@ -774,27 +839,46 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                 Positioned(
                   bottom: -15,
                   right: 0,
-                  child: Container(
-                    height: 36,
-                    width: 36,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        )
-                      ],
-                    ),
-                    child: const Center(
-                      child: Icon(
-                        Icons.favorite_border,
-                        color: Colors.grey,
-                        size: 18,
-                      ),
-                    ),
+                  child: Consumer<EcommerceProvider>(
+                    builder: (context, ecommerceProvider, child) {
+                      final isFavRec = ecommerceProvider.isFavorite(product['id']?.toString() ?? '');
+                      return GestureDetector(
+                        onTap: () {
+                          if (context.read<AuthProvider>().isLoggedIn) {
+                            ecommerceProvider.toggleFavorite(product);
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                duration: const Duration(seconds: 3),
+                                content: Text('Vui lòng đăng nhập để lưu yêu thích'),
+                              ),
+                            );
+                          }
+                        },
+                        child: Container(
+                          height: 36,
+                          width: 36,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            shape: BoxShape.circle,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              )
+                            ],
+                          ),
+                          child: Center(
+                            child: Icon(
+                              isFavRec ? Icons.favorite : Icons.favorite_border,
+                              color: isFavRec ? const Color(0xFFE94560) : Colors.grey,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      );
+                    },
                   ),
                 )
               ],
@@ -922,7 +1006,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
           ],
         ),
         backgroundColor: const Color(0xFF2E7D32),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
         action: SnackBarAction(
           label: 'UNDO',
           textColor: Colors.white,
@@ -1052,7 +1136,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                       onPressed: () {
                         if (_selectedSize == null) {
                           ScaffoldMessenger.of(sheetContext).showSnackBar(
-                            const SnackBar(content: Text('Please select a size first!')),
+                            const SnackBar(duration: const Duration(seconds: 3), content: Text('Please select a size first!')),
                           );
                           return;
                         }
@@ -1119,6 +1203,15 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
   }
 
   List<String> _getProductImages(String? thumbnail, List<dynamic>? dbImages, String name) {
+    // Prefer galleryItems (has color metadata) over plain dbImages list
+    if (_galleryItems.isNotEmpty) {
+      final urls = _galleryItems
+          .map((g) => (g['image'] as String? ?? '').trim())
+          .where((url) => url.isNotEmpty)
+          .toList();
+      if (urls.isNotEmpty) return urls;
+    }
+
     if (dbImages != null && dbImages.isNotEmpty) {
       final urls = dbImages.map((e) => e.toString().trim()).where((url) => url.isNotEmpty).toSet().toList();
       if (urls.length >= 3) {

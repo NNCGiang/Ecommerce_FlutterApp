@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/api_service.dart';
 import '../services/ecommerce_provider.dart';
+import '../services/auth_provider.dart';
 import 'product_detail_screen.dart';
 import 'filter_screen.dart';
+import 'search_screen.dart';
 
 class CategoriesScreen extends StatefulWidget {
-  const CategoriesScreen({super.key});
+  final String? initialTag;
+  const CategoriesScreen({super.key, this.initialTag});
 
   @override
   State<CategoriesScreen> createState() => _CategoriesScreenState();
@@ -40,9 +43,82 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
     'selectedBrands': <String>[],
   };
 
+  String _getCategoryAssetPath(String title) {
+    if (_selectedRootCategory == null) {
+      if (title == 'New') return 'assets/images/jean.png';
+      if (title == 'Clothes') return 'assets/images/trangjean.png';
+      if (title == 'Shoes') return 'assets/images/giay.png';
+      return 'assets/images/vong.png';
+    }
+    final rootName = (_selectedRootCategory!['categoryName'] ?? '').toLowerCase();
+    if (rootName.contains('women')) {
+      if (title == 'New') return 'assets/images/jean.png';
+      if (title == 'Clothes') return 'assets/images/trangjean.png';
+      if (title == 'Shoes') return 'assets/images/giay.png';
+      return 'assets/images/vong.png';
+    } else if (rootName.contains('men')) {
+      if (title == 'New') return 'assets/images/men1.png';
+      if (title == 'Clothes') return 'assets/images/men2.png';
+      if (title == 'Shoes') return 'assets/images/men3.png';
+      return 'assets/images/men4.png';
+    } else if (rootName.contains('kids') || rootName.contains('kid')) {
+      if (title == 'New') return 'assets/images/kid1.png';
+      if (title == 'Clothes') return 'assets/images/kid2.png';
+      if (title == 'Shoes') return 'assets/images/kid3.png';
+      return 'assets/images/kid4.png';
+    }
+    if (title == 'New') return 'assets/images/jean.png';
+    if (title == 'Clothes') return 'assets/images/trangjean.png';
+    if (title == 'Shoes') return 'assets/images/giay.png';
+    return 'assets/images/vong.png';
+  }
+
+  String _getProductGender(Map<String, dynamic> product) {
+    final name = (product['productName'] as String? ?? '').toLowerCase();
+    final pid = (product['id'] as String? ?? '').toLowerCase();
+    final sku = (product['sku'] as String? ?? '').toUpperCase();
+
+    if (name.contains('women')) {
+      return 'women';
+    } else if (name.contains('kids') || name.contains('kid')) {
+      return 'kids';
+    } else if (name.contains('men') || name.contains("men's")) {
+      return 'men';
+    }
+
+    if (pid.startsWith('a0')) {
+      return 'women';
+    } else if (pid.startsWith('a3')) {
+      return 'kids';
+    } else if (pid.startsWith('a4')) {
+      if (sku.contains('KID')) {
+        return 'kids';
+      } else if (sku.contains('MEN')) {
+        return 'men';
+      } else if (sku.contains('WMN') || sku.contains('WOM')) {
+        return 'women';
+      }
+    }
+    return 'women'; // Fallback
+  }
+
+  bool _isProductInRootCategory(Map<String, dynamic> product, String rootId) {
+    if (_selectedRootCategory == null) return true;
+    final rootName = (_selectedRootCategory!['categoryName'] ?? '').toString().toLowerCase();
+    final gender = _getProductGender(product);
+    
+    if (rootName.contains('women')) {
+      return gender == 'women';
+    } else if (rootName.contains('men')) {
+      return gender == 'men';
+    } else if (rootName.contains('kid') || rootName.contains('kids')) {
+      return gender == 'kids';
+    }
+    return true;
+  }
+
   Map<String, dynamic> _enrichProduct(Map<String, dynamic> prod) {
     final name = (prod['productName'] as String? ?? '').toLowerCase();
-    final type = (prod['productType'] as String? ?? '').toLowerCase();
 
     // Map unique Brand based on names/ids
     String brand = 'adidas';
@@ -155,9 +231,69 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
           
           _loading = false;
         });
+        
+        if (widget.initialTag != null) {
+          _applyInitialTag();
+        }
       }
     } catch (e) {
       if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant CategoriesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTag != oldWidget.initialTag && widget.initialTag != null) {
+      _applyInitialTag();
+    }
+  }
+
+  void _applyInitialTag() {
+    final tag = widget.initialTag!;
+    setState(() {
+      _selectedCategory = {'categoryName': tag, 'id': '${tag.toLowerCase()}_tag_bypass'};
+      _selectedSubCategory = null;
+      _currentDepth = 2;
+    });
+    _loadTaggedProducts(tag);
+  }
+
+  void _selectTag(String tag) {
+    setState(() {
+      _selectedCategory = {'categoryName': tag, 'id': '${tag.toLowerCase()}_tag_bypass'};
+      _selectedSubCategory = null;
+      _currentDepth = 2;
+    });
+    _loadTaggedProducts(tag);
+  }
+
+  Future<void> _loadTaggedProducts(String tag) async {
+    setState(() {
+      _loadingProducts = true;
+      _products = [];
+    });
+
+    try {
+      final items = await ApiService.getProductsByTag(tag);
+      final rootId = _selectedRootCategory?['id'];
+      final filtered = items.where((p) {
+        if (rootId == null) return true;
+        return _isProductInRootCategory(p, rootId);
+      }).toList();
+      final enriched = filtered.map((e) => _enrichProduct(Map<String, dynamic>.from(e))).toList();
+      if (mounted) {
+        setState(() {
+          _products = enriched;
+          _loadingProducts = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loadingProducts = false;
+        });
+      }
     }
   }
 
@@ -174,7 +310,83 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
     });
 
     try {
-      final items = await ApiService.getProductsByCategory(categoryId);
+      List<dynamic> items;
+      final isClothesParent = categoryId == 'c0000000-0000-0000-0000-000000000010' ||
+                             categoryId == 'c0000000-0000-0000-0000-000000000011' ||
+                             categoryId == 'c0000000-0000-0000-0000-000000000013' ||
+                             categoryId == 'c0000000-0000-0000-0000-000000000012';
+
+      if (categoryId.contains('_mock') || isClothesParent) {
+        final rootId = _selectedRootCategory?['id'];
+        final allProducts = await ApiService.getPublishedProducts();
+        
+        List<dynamic> filteredByRoot = allProducts;
+        if (rootId != null) {
+          filteredByRoot = allProducts.where((p) => _isProductInRootCategory(p, rootId)).toList();
+        }
+
+        if (_selectedSubCategory != null) {
+          final String subName = (_selectedSubCategory!['categoryName'] ?? '').toLowerCase();
+          items = filteredByRoot.where((p) {
+            final name = (p['productName'] as String? ?? '').toLowerCase();
+            final type = (p['productType'] as String? ?? '').toLowerCase();
+            
+            if (subName == 'tops') {
+              return name.contains('top') || type.contains('top');
+            }
+            String searchKeyword = subName;
+            if (searchKeyword.endsWith('s') && searchKeyword.length > 3) {
+              searchKeyword = searchKeyword.substring(0, searchKeyword.length - 1);
+            }
+            return name.contains(searchKeyword) ||
+                   type.contains(searchKeyword) ||
+                   name.contains(subName) ||
+                   type.contains(subName);
+          }).toList();
+        } else {
+          // "VIEW ALL ITEMS" fallback for parent category
+          final String catName = (_selectedCategory?['categoryName'] ?? '').toLowerCase();
+          if (catName.contains('shoes') || catName.contains('shoe')) {
+            items = filteredByRoot.where((p) {
+              final name = (p['productName'] as String? ?? '').toLowerCase();
+              final type = (p['productType'] as String? ?? '').toLowerCase();
+              final keywords = [
+                'shoe', 'heel', 'sandal', 'boot', 'sneaker', 'clog', 'giay',
+                'oxford', 'derby', 'loafer', 'trainer', 'tennis', 'running shoe',
+                'slip-on', 'slipper', 'canvas shoe', 'school shoe', 'sport shoe',
+                'mary jane', 'wedge', 'espadrille', 'platform'
+              ];
+              return keywords.any((k) => name.contains(k) || type.contains(k));
+            }).toList();
+          } else if (catName.contains('accessories') || catName.contains('accessory')) {
+            items = filteredByRoot.where((p) {
+              final name = (p['productName'] as String? ?? '').toLowerCase();
+              final type = (p['productType'] as String? ?? '').toLowerCase();
+              final keywords = [
+                'necklace', 'choker', 'earring', 'ring', 'bracelet', 'watch', 
+                'bag', 'wallet', 'sunglass', 'brooch', 'clutch', 'keychain', 'vong',
+                'belt', 'cufflink', 'tie clip', 'scarf', 'backpack', 'crossbody',
+                'messenger', 'cap', 'hat', 'hair clip', 'glove'
+              ];
+              return keywords.any((k) => name.contains(k) || type.contains(k));
+            }).toList();
+          } else {
+            // For Clothes parent category, filter out shoes and accessories!
+            items = filteredByRoot.where((p) {
+              final name = (p['productName'] as String? ?? '').toLowerCase();
+              final type = (p['productType'] as String? ?? '').toLowerCase();
+              
+              final isShoe = name.contains('shoe') || name.contains('heel') || name.contains('sandal') || name.contains('boot') || name.contains('sneaker') || name.contains('clog') || type.contains('shoe');
+              final isAccessory = name.contains('necklace') || name.contains('choker') || name.contains('earring') || name.contains('ring') || name.contains('bracelet') || name.contains('watch') || name.contains('bag') || name.contains('wallet') || name.contains('sunglass') || name.contains('brooch') || name.contains('clutch') || name.contains('keychain') || name.contains('belt') || name.contains('hair clip') || name.contains('backpack');
+              
+              return !isShoe && !isAccessory;
+            }).toList();
+          }
+        }
+      } else {
+        items = await ApiService.getProductsByCategory(categoryId);
+      }
+
       final enriched = items.map((e) => _enrichProduct(Map<String, dynamic>.from(e))).toList();
       if (mounted) {
         setState(() {
@@ -199,10 +411,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
 
     try {
       final items = await ApiService.getProductsByTag('NEW');
-      // Filter in memory for matching root category (e.g. Women/Men)
+      final rootId = _selectedRootCategory?['id'];
       final filtered = items.where((p) {
-        final List<dynamic> productCats = p['categories'] ?? [];
-        return productCats.any((c) => (c as String).toLowerCase() == rootCategoryName.toLowerCase());
+        if (rootId == null) return false;
+        return _isProductInRootCategory(p, rootId);
       }).toList();
       final enriched = filtered.map((e) => _enrichProduct(Map<String, dynamic>.from(e))).toList();
 
@@ -240,7 +452,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
       onWillPop: () async {
         if (_currentDepth > 0) {
           setState(() {
-            _currentDepth--;
+            if (_selectedCategory != null && _selectedCategory!['id']?.toString().endsWith('_tag_bypass') == true) {
+              _currentDepth = 0;
+              _selectedCategory = null;
+            } else {
+              _currentDepth--;
+            }
             if (_currentDepth < 2) {
               _selectedChip = 'All';
             }
@@ -275,7 +492,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
         onPressed: () {
           if (_currentDepth > 0) {
             setState(() {
-              _currentDepth--;
+              if (_selectedCategory != null && _selectedCategory!['id']?.toString().endsWith('_tag_bypass') == true) {
+                _currentDepth = 0;
+                _selectedCategory = null;
+              } else {
+                _currentDepth--;
+              }
               if (_currentDepth < 2) {
                 _selectedChip = 'All';
               }
@@ -294,7 +516,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
       actions: [
         IconButton(
           icon: const Icon(Icons.search, color: Colors.black87),
-          onPressed: () {},
+          tooltip: 'Search',
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SearchScreen()),
+          ),
         )
       ],
     );
@@ -344,41 +570,44 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
             child: Column(
               children: [
                 // Red Banner: SUMMER SALES
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE94560),
-                    borderRadius: BorderRadius.circular(10),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFFE94560).withOpacity(0.3),
-                        blurRadius: 6,
-                        offset: const Offset(0, 3),
-                      )
-                    ],
-                  ),
-                  child: Column(
-                    children: const [
-                      Text(
-                        'SUMMER SALES',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.0,
+                GestureDetector(
+                  onTap: () => _selectTag('SALE'),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE94560),
+                      borderRadius: BorderRadius.circular(10),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFE94560).withOpacity(0.3),
+                          blurRadius: 6,
+                          offset: const Offset(0, 3),
+                        )
+                      ],
+                    ),
+                    child: Column(
+                      children: const [
+                        Text(
+                          'SUMMER SALES',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 24,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.0,
+                          ),
                         ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Up to 50% off',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w500,
+                        SizedBox(height: 4),
+                        Text(
+                          'Up to 50% off',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -386,7 +615,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
                 // Main division cards: New, Clothes, Shoes, Accessories
                 _buildRootDivisionCard(
                   title: 'New',
-                  assetPath: 'assets/images/jean.png',
+                  assetPath: _getCategoryAssetPath('New'),
                   onTap: () {
                     setState(() {
                       _selectedCategory = {'categoryName': 'New', 'id': 'new_tag_bypass'};
@@ -399,17 +628,17 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
                 
                 _buildRootCategoryCard(
                   title: 'Clothes',
-                  assetPath: 'assets/images/trangjean.png',
+                  assetPath: _getCategoryAssetPath('Clothes'),
                 ),
                 
                 _buildRootCategoryCard(
                   title: 'Shoes',
-                  assetPath: 'assets/images/giay.png',
+                  assetPath: _getCategoryAssetPath('Shoes'),
                 ),
                 
                 _buildRootCategoryCard(
                   title: 'Accessories',
-                  assetPath: 'assets/images/vong.png',
+                  assetPath: _getCategoryAssetPath('Accessories'),
                 ),
               ],
             ),
@@ -483,25 +712,27 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
   }) {
     // Find category dynamically
     final rootId = _selectedRootCategory!['id'];
-    final category = _allCategories.firstWhere(
+    var category = _allCategories.firstWhere(
       (c) => c['parentId'] == rootId && (c['categoryName'] as String).toLowerCase() == title.toLowerCase(),
       orElse: () => null,
     );
+
+    category ??= {
+      'id': '${rootId}_${title.toLowerCase()}_mock',
+      'parentId': rootId,
+      'categoryName': title,
+      'categoryDescription': '$title category',
+      'active': true,
+    };
 
     return _buildRootDivisionCard(
       title: title,
       assetPath: assetPath,
       onTap: () {
-        if (category != null) {
-          setState(() {
-            _selectedCategory = category;
-            _currentDepth = 1;
-          });
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Danh mục $title của ${_selectedRootCategory!['categoryName']} đang được cập nhật!')),
-          );
-        }
+        setState(() {
+          _selectedCategory = category;
+          _currentDepth = 1;
+        });
       },
     );
   }
@@ -512,7 +743,126 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
 
     // Filter subcategories belonging to selected category
     final parentId = _selectedCategory!['id'];
-    final subCategories = _allCategories.where((c) => c['parentId'] == parentId).toList();
+    final rootName = (_selectedRootCategory?['categoryName'] ?? '').toLowerCase();
+    final catName = (_selectedCategory!['categoryName'] ?? '').toLowerCase();
+
+    List<dynamic> subCategories = _allCategories.where((c) => c['parentId'] == parentId).toList();
+
+    // Men: remove Dresses, inject Shoes & Accessories fallbacks
+    if (rootName == 'men' || (rootName.contains('men') && !rootName.contains('women'))) {
+      subCategories.removeWhere((c) {
+        final name = (c['categoryName'] as String? ?? '').toLowerCase();
+        return name == 'dresses' || name == 'dress';
+      });
+
+      if (catName.contains('shoes')) {
+        final List<String> menShoeSubCats = [
+          'Tops', 'Sneakers', 'Running Shoes', 'Oxford Shoes', 'Derby Shoes',
+          'Sandals', 'Work Boots', 'Tennis Shoes'
+        ];
+        if (subCategories.isEmpty) {
+          subCategories = menShoeSubCats.map((name) => {
+            'id': '${parentId}_${name.toLowerCase().replaceAll(' ', '_')}_mock',
+            'parentId': parentId,
+            'categoryName': name,
+            'categoryDescription': "Men's Shoe Subcategory",
+            'active': true,
+          }).toList();
+        }
+      } else if (catName.contains('accessories')) {
+        final List<String> menAccSubCats = [
+          'Tops', 'Watches', 'Necklaces', 'Cufflinks', 'Tie Clips', 'Belts',
+          'Wallets', 'Scarves', 'Backpacks', 'Crossbody Bags', 'Messenger Bags',
+          'Keychains'
+        ];
+        if (subCategories.isEmpty) {
+          subCategories = menAccSubCats.map((name) => {
+            'id': '${parentId}_${name.toLowerCase().replaceAll(' ', '_')}_mock',
+            'parentId': parentId,
+            'categoryName': name,
+            'categoryDescription': "Men's Accessories Subcategory",
+            'active': true,
+          }).toList();
+        }
+      }
+    }
+
+    // Kids: inject Shoes & Accessories fallbacks
+    if (rootName.contains('kid')) {
+      if (catName.contains('shoes')) {
+        final List<String> kidShoeSubCats = [
+          'Tops', 'Sneakers', 'School Shoes', 'Sandals', 'Slip-ons', 'Boots',
+          'Trainers', 'Sports Shoes', 'Canvas Shoes', 'Mary Janes', 'Slippers'
+        ];
+        if (subCategories.isEmpty) {
+          subCategories = kidShoeSubCats.map((name) => {
+            'id': '${parentId}_${name.toLowerCase().replaceAll(' ', '_')}_mock',
+            'parentId': parentId,
+            'categoryName': name,
+            'categoryDescription': "Kids' Shoe Subcategory",
+            'active': true,
+          }).toList();
+        }
+      } else if (catName.contains('accessories')) {
+        final List<String> kidAccSubCats = [
+          'Tops', 'Caps', 'Hats', 'Backpacks', 'Bags', 'Sunglasses', 'Watches',
+          'Hair Clips', 'Scarves', 'Gloves', 'Keychains', 'Necklaces'
+        ];
+        if (subCategories.isEmpty) {
+          subCategories = kidAccSubCats.map((name) => {
+            'id': '${parentId}_${name.toLowerCase().replaceAll(' ', '_')}_mock',
+            'parentId': parentId,
+            'categoryName': name,
+            'categoryDescription': "Kids' Accessories Subcategory",
+            'active': true,
+          }).toList();
+        }
+      }
+    }
+
+    // Women: inject Shoes & Accessories fallbacks
+    if (rootName.contains('women')) {
+      if (catName.contains('shoes')) {
+        final List<String> shoeSubCats = [
+          'Tops', 'Heels', 'Sandals', 'Wedges', 'Espadrilles', 'Loafers', 
+          'Sneakers', 'Running Shoes', 'Ankle Boots', 'Platform Shoes', 
+          'Mary Janes', 'Oxford Shoes', 'Clogs'
+        ];
+        if (subCategories.isEmpty) {
+          subCategories = shoeSubCats.map((name) => {
+            'id': '${parentId}_${name.toLowerCase().replaceAll(' ', '_')}_mock',
+            'parentId': parentId,
+            'categoryName': name,
+            'categoryDescription': "Women's Shoe Subcategory",
+            'active': true,
+          }).toList();
+        }
+      } else if (catName.contains('accessories')) {
+        final List<String> accSubCats = [
+          'Tops', 'Necklaces', 'Chokers', 'Earrings', 'Bracelets', 'Rings', 
+          'Watches', 'Brooches', 'Sunglasses', 'Handbags', 'Bags', 'Clutches', 
+          'Wallets', 'Keychains'
+        ];
+        if (subCategories.isEmpty) {
+          subCategories = accSubCats.map((name) => {
+            'id': '${parentId}_${name.toLowerCase().replaceAll(' ', '_')}_mock',
+            'parentId': parentId,
+            'categoryName': name,
+            'categoryDescription': "Women's Accessories Subcategory",
+            'active': true,
+          }).toList();
+        }
+      }
+    }
+
+    // Move "Tops" to the first position
+    subCategories.sort((a, b) {
+      final nameA = (a['categoryName'] as String? ?? '').toLowerCase();
+      final nameB = (b['categoryName'] as String? ?? '').toLowerCase();
+      if (nameA == 'tops') return -1;
+      if (nameB == 'tops') return 1;
+      return 0;
+    });
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
@@ -676,6 +1026,10 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
         final name = (p['productName'] as String? ?? '').toLowerCase();
         final type = (p['productType'] as String? ?? '').toLowerCase();
         final chip = _selectedChip.toLowerCase();
+        // If tag page, match dynamically extracted type
+        if (_selectedCategory != null && _selectedCategory!['id']?.toString().endsWith('_tag_bypass') == true) {
+          return type == chip || type.contains(chip) || name.contains(chip);
+        }
         // Match specific types
         if (chip == 't-shirts') {
           return name.contains('t-shirt') || type.contains('t-shirt') || type.contains('shirt');
@@ -814,7 +1168,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
                         crossAxisCount: 2,
                         crossAxisSpacing: 12,
                         mainAxisSpacing: 16,
-                        childAspectRatio: 0.58,
+                        childAspectRatio: 0.52,
                       ),
                       itemCount: sorted.length,
                       itemBuilder: (context, index) {
@@ -832,7 +1186,23 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
         : (_selectedCategory != null ? (_selectedCategory!['categoryName'] ?? '') : 'Items');
 
     List<String> chips = ['All'];
-    if (catName.toLowerCase().contains('top')) {
+    if (_selectedCategory != null && _selectedCategory!['id']?.toString().endsWith('_tag_bypass') == true) {
+      final Set<String> types = {};
+      for (var p in _products) {
+        final String? t = p['productType']?.toString().trim();
+        if (t != null && t.isNotEmpty) {
+          String formatted = t;
+          if (t.length > 1) {
+            formatted = t[0].toUpperCase() + t.substring(1);
+          } else {
+            formatted = t.toUpperCase();
+          }
+          types.add(formatted);
+        }
+      }
+      final sortedTypes = types.toList()..sort();
+      chips.addAll(sortedTypes);
+    } else if (catName.toLowerCase().contains('top')) {
       chips = ['All', 'T-shirts', 'Crop tops', 'Sleeveless', 'Shirts', 'Blouses'];
     } else if (catName.toLowerCase().contains('jean')) {
       chips = ['All', 'Skinny', 'Ripped', 'Wide leg', 'Classic', 'Light wash'];
@@ -1091,27 +1461,46 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
           Positioned(
             bottom: -8,
             right: 8,
-            child: Container(
-              height: 36,
-              width: 36,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  )
-                ],
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.favorite_border,
-                  color: Colors.grey,
-                  size: 18,
-                ),
-              ),
+            child: Consumer<EcommerceProvider>(
+              builder: (context, ecommerce, child) {
+                final isFav = ecommerce.isFavorite(product['id']?.toString() ?? '');
+                return GestureDetector(
+                  onTap: () {
+                    if (context.read<AuthProvider>().isLoggedIn) {
+                      ecommerce.toggleFavorite(product);
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          duration: const Duration(seconds: 3),
+                          content: Text('Vui lòng đăng nhập để lưu yêu thích'),
+                        ),
+                      );
+                    }
+                  },
+                  child: Container(
+                    height: 36,
+                    width: 36,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        )
+                      ],
+                    ),
+                    child: Center(
+                      child: Icon(
+                        isFav ? Icons.favorite : Icons.favorite_border,
+                        color: isFav ? const Color(0xFFE94560) : Colors.grey,
+                        size: 18,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -1305,7 +1694,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
                       onPressed: () {
                         if (localSelectedSize == null) {
                           ScaffoldMessenger.of(sheetContext).showSnackBar(
-                            const SnackBar(content: Text('Please select a size first!')),
+                            const SnackBar(duration: const Duration(seconds: 3), content: Text('Please select a size first!')),
                           );
                           return;
                         }
@@ -1398,7 +1787,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
           ],
         ),
         backgroundColor: const Color(0xFF2E7D32),
-        duration: const Duration(seconds: 2),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -1433,7 +1822,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
           clipBehavior: Clip.none,
           children: [
             Container(
-              height: 180,
+              height: 160,
               decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.circular(8),
@@ -1507,29 +1896,48 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
             Positioned(
               bottom: -15,
               right: 0,
-              child: Container(
-                height: 36,
-                width: 36,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                      offset: const Offset(0, 2),
-                    )
-                  ],
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.favorite_border,
-                    color: Colors.grey,
-                    size: 18,
-                  ),
-                ),
+              child: Consumer<EcommerceProvider>(
+                builder: (context, ecommerce, child) {
+                  final isFav = ecommerce.isFavorite(product['id']?.toString() ?? '');
+                  return GestureDetector(
+                    onTap: () {
+                      if (context.read<AuthProvider>().isLoggedIn) {
+                        ecommerce.toggleFavorite(product);
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            duration: const Duration(seconds: 3),
+                            content: Text('Vui lòng đăng nhập để lưu yêu thích'),
+                          ),
+                        );
+                      }
+                    },
+                    child: Container(
+                      height: 36,
+                      width: 36,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
+                          )
+                        ],
+                      ),
+                      child: Center(
+                        child: Icon(
+                          isFav ? Icons.favorite : Icons.favorite_border,
+                          color: isFav ? const Color(0xFFE94560) : Colors.grey,
+                          size: 18,
+                        ),
+                      ),
+                    ),
+                  );
+                },
               ),
-            )
+            ),
           ],
         ),
         const SizedBox(height: 20),
@@ -1626,6 +2034,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
     if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
       return Image.network(
         cleanPath,
+        width: double.infinity,
+        height: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image_outlined, size: 36, color: Colors.grey)),
       );
@@ -1641,6 +2051,8 @@ class _CategoriesScreenState extends State<CategoriesScreen> with TickerProvider
       }
       return Image.asset(
         cleanPath,
+        width: double.infinity,
+        height: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (_, __, ___) => const Center(child: Icon(Icons.broken_image_outlined, size: 36, color: Colors.grey)),
       );

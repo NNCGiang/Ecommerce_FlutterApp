@@ -56,7 +56,7 @@ class _FilterScreenState extends State<FilterScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Filters reset to default values.'),
-        duration: Duration(seconds: 1),
+        duration: const Duration(seconds: 3),
       ),
     );
   }

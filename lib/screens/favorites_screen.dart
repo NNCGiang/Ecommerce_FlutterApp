@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../services/ecommerce_provider.dart';
 import '../services/auth_provider.dart';
 import 'product_detail_screen.dart';
+import 'search_screen.dart';
 
 class FavoritesScreen extends StatefulWidget {
   const FavoritesScreen({super.key});
@@ -120,7 +121,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
               actions: [
                 IconButton(
                   icon: const Icon(Icons.search, color: Colors.black87),
-                  onPressed: () {},
+                  tooltip: 'Search',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SearchScreen()),
+                  ),
                 ),
               ],
             )
@@ -146,7 +151,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.search, color: Colors.black87, size: 28),
-                      onPressed: () {},
+                      tooltip: 'Search',
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SearchScreen()),
+                      ),
                     ),
                   ],
                 ),
@@ -562,7 +571,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                           content: Text('Đã thêm vào giỏ hàng thành công!'),
-                          duration: Duration(seconds: 1),
+                          duration: const Duration(seconds: 3),
                         ),
                       );
                     },
@@ -613,7 +622,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       itemCount: list.length,
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        childAspectRatio: 0.60,
+        childAspectRatio: 0.52,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
@@ -665,7 +674,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                       );
                     },
                     child: Container(
-                      height: 180,
+                      height: 160,
                       width: double.infinity,
                       decoration: const BoxDecoration(
                         color: Colors.white,
@@ -737,7 +746,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
                               content: Text('Đã thêm vào giỏ hàng thành công!'),
-                              duration: Duration(seconds: 1),
+                              duration: const Duration(seconds: 3),
                             ),
                           );
                         },
@@ -783,7 +792,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
                   // OUT OF STOCK overlay & text on top of image
                   if (isOutOfStock) ...[
                     Container(
-                      height: 180,
+                      height: 160,
                       decoration: BoxDecoration(
                         color: Colors.black.withOpacity(0.4),
                         borderRadius: const BorderRadius.only(
@@ -908,6 +917,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
       return Image.network(
         cleanPath,
+        width: double.infinity,
+        height: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return const Center(
@@ -928,6 +939,8 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
       
       return Image.asset(
         cleanPath,
+        width: double.infinity,
+        height: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           return Center(

@@ -14,7 +14,7 @@ class LoginScreen2 extends StatefulWidget {
 }
 
 class _LoginScreen2State extends State<LoginScreen2> {
-  final _emailCtrl = TextEditingController(text: 'muffin.sweet@gmail.com');
+  final _emailCtrl = TextEditingController(text: 'demo@ct1shop.com');
   final _passCtrl = TextEditingController(text: '123456');
   bool _obscure = true;
   List<Map<String, dynamic>> _savedAccounts = [];
@@ -43,7 +43,7 @@ class _LoginScreen2State extends State<LoginScreen2> {
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập Email và Mật khẩu')),
+        const SnackBar(duration: const Duration(seconds: 3), content: Text('Vui lòng nhập Email và Mật khẩu')),
       );
       return;
     }
@@ -65,44 +65,11 @@ class _LoginScreen2State extends State<LoginScreen2> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.error ?? 'Đăng nhập thất bại')),
+        SnackBar(duration: const Duration(seconds: 3), content: Text(auth.error ?? 'Đăng nhập thất bại')),
       );
     }
   }
 
-  Future<void> _loginBypass() async {
-    final auth = context.read<AuthProvider>();
-    final email = _emailCtrl.text.trim();
-    final name = email.isNotEmpty ? email.split('@')[0] : 'demo';
-    
-    final ok = await auth.loginBypass(
-      email: email.isNotEmpty ? email : 'demo@ct1shop.com',
-      fullName: name.toUpperCase(),
-    );
-    
-    if (!mounted) return;
-    
-    if (ok) {
-      await ApiService.saveAccount(
-        email: email.isNotEmpty ? email : 'demo@ct1shop.com',
-        fullName: name.toUpperCase(),
-        provider: 'email',
-      );
-      if (!mounted) return;
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Đăng nhập dùng thử thành công!'),
-          backgroundColor: Colors.green.shade700,
-        ),
-      );
-      
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-      );
-    }
-  }
 
   void _selectSavedAccount(Map<String, dynamic> acc) {
     setState(() {
@@ -264,23 +231,6 @@ class _LoginScreen2State extends State<LoginScreen2> {
                         ),
                 ),
               ),
-              const SizedBox(height: 16),
-
-              // Demo mode / Bypass button
-              Center(
-                child: TextButton.icon(
-                  onPressed: auth.loading ? null : _loginBypass,
-                  icon: const Icon(Icons.flash_on, color: Color(0xFFDB3022), size: 16),
-                  label: const Text(
-                    'FAST LOGIN (BYPASS)',
-                    style: TextStyle(
-                      color: Color(0xFFDB3022),
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
               const SizedBox(height: 24),
 
               // Redirect to Sign up
@@ -319,15 +269,15 @@ class _LoginScreen2State extends State<LoginScreen2> {
                       children: [
                         // Google button
                         _buildSocialButton(
-                          logoPath: 'assets/images/google_logo.png', // Fallback local logo if available, or text
-                          icon: Image.network('https://www.google.com/favicon.ico', width: 24, height: 24),
+                          logoPath: 'assets/images/gg.png', 
+                          icon: Image.asset('assets/images/gg.png', width: 24, height: 24),
                           onTap: () {}, // Connected if OAuth set up
                         ),
                         const SizedBox(width: 16),
                         // Facebook button
                         _buildSocialButton(
-                          logoPath: 'assets/images/facebook_logo.png',
-                          icon: const Icon(Icons.facebook, color: Color(0xFF1877F2), size: 28),
+                          logoPath: 'assets/images/fb.png',
+                          icon: Image.asset('assets/images/fb.png', width: 28, height: 28),
                           onTap: () {},
                         ),
                       ],

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../services/auth_provider.dart';
 import '../services/ecommerce_provider.dart';
@@ -8,6 +9,14 @@ import 'categories_screen.dart';
 import 'login_screen2.dart';
 import 'product_detail_screen.dart';
 import 'favorites_screen.dart';
+import 'checkout_screen.dart';
+import 'my_orders_screen.dart';
+import 'settings_screen.dart';
+import 'shipping_addresses_screen.dart';
+import 'payment_methods_screen.dart';
+import 'search_screen.dart';
+import 'promocodes_screen.dart';
+import 'my_reviews_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   List<dynamic> _newProducts = [];
   bool _loadingSale = true;
   bool _loadingNew = true;
+  String? _initialCategoryTag;
 
   final List<Map<String, String>> _bannerItems = [
     {
@@ -44,9 +54,21 @@ class _HomeScreenState extends State<HomeScreen> {
     _loadHomeData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (context.read<AuthProvider>().isLoggedIn) {
-        context.read<EcommerceProvider>().loadCart();
-        context.read<EcommerceProvider>().loadFavorites();
+        final ep = context.read<EcommerceProvider>();
+        ep.loadCart();
+        ep.loadFavorites();
+        ep.loadAddresses();
+        ep.loadPaymentCards();
+        ep.loadMyReviews();
+        ep.loadActivePromos();
       }
+    });
+  }
+
+  void _navigateToTag(String tag) {
+    setState(() {
+      _initialCategoryTag = tag;
+      _currentNav = 1;
     });
   }
 
@@ -106,11 +128,33 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF9F9F9),
       appBar: _buildAppBar(user),
-      body: _buildBody(user),
+      body: Stack(
+        children: [
+          _buildBody(user),
+          if (_currentNav == 0)
+            Positioned(
+              top: 0,
+              right: 12,
+              child: SafeArea(
+                child: IconButton(
+                  icon: const Icon(Icons.search, color: Colors.white, size: 28),
+                  tooltip: 'Search',
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const SearchScreen()),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentNav,
         onTap: (i) {
-          setState(() => _currentNav = i);
+          setState(() {
+            _currentNav = i;
+            _initialCategoryTag = null;
+          });
           if (i == 2 && context.read<AuthProvider>().isLoggedIn) {
             context.read<EcommerceProvider>().loadCart();
           }
@@ -167,15 +211,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   PreferredSizeWidget? _buildAppBar(Map<String, dynamic>? user) {
-    if (_currentNav == 1 || _currentNav == 3) {
+    if (_currentNav == 0 || _currentNav == 1 || _currentNav == 3) {
       return null;
     }
     if (_currentNav == 4) {
       return AppBar(
-        backgroundColor: const Color(0xFF1A1A2E),
-        title: const Text('My Profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        backgroundColor: Colors.white,
         elevation: 0,
-        centerTitle: true,
+        scrolledUnderElevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search, color: Colors.black, size: 26),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const SearchScreen()),
+            ),
+          ),
+        ],
       );
     }
     String titleText = 'CT1 Shop';
@@ -196,6 +248,16 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
         ],
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search, color: Colors.white),
+          tooltip: 'Search',
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const SearchScreen()),
+          ),
+        ),
+      ],
     );
   }
 
@@ -204,7 +266,7 @@ class _HomeScreenState extends State<HomeScreen> {
       case 0:
         return _buildHome();
       case 1:
-        return const CategoriesScreen();
+        return CategoriesScreen(initialTag: _initialCategoryTag);
       case 2:
         return _buildBag();
       case 3:
@@ -305,7 +367,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       width: 130,
                       height: 40,
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: () {
+                          final title = item['title']?.toLowerCase() ?? '';
+                          if (title.contains('sale')) {
+                            _navigateToTag('SALE');
+                          } else if (title.contains('new')) {
+                            _navigateToTag('NEW');
+                          }
+                        },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFE94560),
                           foregroundColor: Colors.white,
@@ -336,36 +405,39 @@ class _HomeScreenState extends State<HomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Banner 1: New Collection
-        Container(
-          height: 200,
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            image: const DecorationImage(
-              image: AssetImage('assets/images/setjean.png'),
-              fit: BoxFit.cover,
-            ),
-          ),
+        GestureDetector(
+          onTap: () => _navigateToTag('NEW'),
           child: Container(
+            height: 200,
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(8),
-              gradient: LinearGradient(
-                begin: Alignment.centerLeft,
-                end: Alignment.centerRight,
-                colors: [
-                  Colors.black.withOpacity(0.55),
-                  Colors.transparent,
-                ],
+              image: const DecorationImage(
+                image: AssetImage('assets/images/setjean.png'),
+                fit: BoxFit.cover,
               ),
             ),
-            padding: const EdgeInsets.all(24),
-            alignment: Alignment.centerLeft,
-            child: const Text(
-              'New collection',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 32,
-                fontWeight: FontWeight.bold,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    Colors.black.withOpacity(0.55),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+              padding: const EdgeInsets.all(24),
+              alignment: Alignment.centerLeft,
+              child: const Text(
+                'New collection',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -383,29 +455,32 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   children: [
                     // Summer Sale Card
-                    Container(
-                      height: 110,
-                      width: double.infinity,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          )
-                        ],
-                      ),
-                      padding: const EdgeInsets.all(16),
-                      alignment: Alignment.centerLeft,
-                      child: const Text(
-                        'Summer\nsale',
-                        style: TextStyle(
-                          color: Color(0xFFE94560),
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          height: 1.1,
+                    GestureDetector(
+                      onTap: () => _navigateToTag('SALE'),
+                      child: Container(
+                        height: 110,
+                        width: double.infinity,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            )
+                          ],
+                        ),
+                        padding: const EdgeInsets.all(16),
+                        alignment: Alignment.centerLeft,
+                        child: const Text(
+                          'Summer\nsale',
+                          style: TextStyle(
+                            color: Color(0xFFE94560),
+                            fontSize: 26,
+                            fontWeight: FontWeight.w900,
+                            height: 1.1,
+                          ),
                         ),
                       ),
                     ),
@@ -533,7 +608,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               GestureDetector(
-                onTap: () {},
+                onTap: () {
+                  setState(() {
+                    _initialCategoryTag = isSale ? 'SALE' : 'NEW';
+                    _currentNav = 1;
+                  });
+                },
                 child: const Text(
                   'View all',
                   style: TextStyle(color: Colors.black87, fontSize: 12, fontWeight: FontWeight.w500),
@@ -601,7 +681,7 @@ class _HomeScreenState extends State<HomeScreen> {
             clipBehavior: Clip.none,
             children: [
               Container(
-                height: 180,
+                height: 160,
                 width: 150,
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -670,7 +750,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ecommerce.toggleFavorite(product);
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Vui lòng đăng nhập để lưu yêu thích')),
+                            const SnackBar(duration: const Duration(seconds: 3), content: Text('Vui lòng đăng nhập để lưu yêu thích')),
                           );
                         }
                       },
@@ -800,6 +880,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
       return Image.network(
         cleanPath,
+        width: double.infinity,
+        height: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           debugPrint('Error loading network image: "$cleanPath", Error: $error');
@@ -831,6 +913,8 @@ class _HomeScreenState extends State<HomeScreen> {
       
       return Image.asset(
         cleanPath,
+        width: double.infinity,
+        height: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           debugPrint('Error loading asset image: "$cleanPath", Error: $error');
@@ -869,28 +953,198 @@ class _HomeScreenState extends State<HomeScreen> {
     return '$formattedđ';
   }
 
+  Widget _buildAvatarImage(String? imagePath) {
+    if (imagePath == null || imagePath.isEmpty) {
+      return const CircleAvatar(
+        radius: 36,
+        backgroundImage: AssetImage('assets/images/avata1.png'),
+        backgroundColor: Colors.transparent,
+      );
+    }
+
+    String cleanPath = imagePath.trim();
+    if (cleanPath.startsWith('http://') || cleanPath.startsWith('https://')) {
+      return CircleAvatar(
+        radius: 36,
+        backgroundImage: NetworkImage(cleanPath, headers: const {'ngrok-skip-browser-warning': 'true'}),
+        backgroundColor: Colors.grey[200],
+      );
+    } else if (cleanPath.startsWith('/uploads/') || cleanPath.contains('/uploads/')) {
+      final fullUrl = ApiService.getFullImageUrl(cleanPath);
+      return CircleAvatar(
+        radius: 36,
+        backgroundImage: NetworkImage(fullUrl, headers: const {'ngrok-skip-browser-warning': 'true'}),
+        backgroundColor: Colors.grey[200],
+      );
+    } else {
+      if (!cleanPath.contains('assets/')) {
+        cleanPath = 'assets/images/$cleanPath';
+      }
+      return CircleAvatar(
+        radius: 36,
+        backgroundImage: AssetImage(cleanPath),
+        backgroundColor: Colors.grey[200],
+      );
+    }
+  }
+
+  bool _isAvatarUploading = false;
+
+  Future<void> _changeAvatar() async {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      builder: (pickerContext) {
+        final picker = ImagePicker();
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera, color: Color(0xFFFF3B30)),
+                title: const Text('Chụp ảnh mới (Take Photo)'),
+                onTap: () async {
+                  Navigator.of(pickerContext).pop();
+                  final XFile? photo = await picker.pickImage(source: ImageSource.camera);
+                  if (photo != null) {
+                    _uploadAvatar(photo);
+                  }
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library, color: Color(0xFFFF3B30)),
+                title: const Text('Chọn ảnh từ thư viện (Upload Image)'),
+                onTap: () async {
+                  Navigator.of(pickerContext).pop();
+                  final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                  if (image != null) {
+                    _uploadAvatar(image);
+                  }
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _uploadAvatar(XFile file) async {
+    try {
+      setState(() {
+        _isAvatarUploading = true;
+      });
+
+      // Show temporary loading dialog
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(
+          child: CircularProgressIndicator(color: Color(0xFFFF3B30)),
+        ),
+      );
+
+      final bytes = await file.readAsBytes();
+      final String uploadedUrl = await ApiService.uploadReviewFile(bytes, file.name);
+
+      if (mounted) {
+        // Pop the loading dialog
+        Navigator.of(context).pop();
+
+        final success = await context.read<AuthProvider>().updateSettings(avatarUrl: uploadedUrl);
+        if (success && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Cập nhật avatar thành công!'), backgroundColor: Colors.green),
+          );
+        } else if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Lỗi đồng bộ avatar với database'), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        // Try to pop the loading dialog if it is showing
+        Navigator.of(context).pop();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi tải avatar: $e'), backgroundColor: Colors.red),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isAvatarUploading = false;
+        });
+      }
+    }
+  }
+
   Widget _buildProfile(Map<String, dynamic>? user) {
     final String name = user?['fullName'] ?? 'Guest User';
     final String email = user?['email'] ?? 'guest@example.com';
-    
+    final ecommerce = context.watch<EcommerceProvider>();
+
+    final int addrCount = ecommerce.addresses.length;
+    final String addrSub = addrCount == 1 ? '1 address' : '$addrCount addresses';
+
+    String cardSub = 'No payment cards';
+    if (ecommerce.paymentCards.isNotEmpty) {
+      final defaultCard = ecommerce.defaultCard;
+      if (defaultCard != null) {
+        final brand = defaultCard['brand'] ?? 'Card';
+        final masked = defaultCard['maskedNumber'] ?? '';
+        final last4 = masked.length >= 4 ? masked.substring(masked.length - 4) : '';
+        cardSub = '$brand **$last4';
+      } else {
+        final firstCard = ecommerce.paymentCards.first;
+        final brand = firstCard['brand'] ?? 'Card';
+        final masked = firstCard['maskedNumber'] ?? '';
+        final last4 = masked.length >= 4 ? masked.substring(masked.length - 4) : '';
+        cardSub = '$brand **$last4';
+      }
+    }
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const Text(
+            'My profile',
+            style: TextStyle(
+              fontSize: 34,
+              fontWeight: FontWeight.bold,
+              color: Colors.black,
+            ),
+          ),
+          const SizedBox(height: 24),
           // User profile card
           Row(
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFFE94560), width: 2),
-                ),
-                child: CircleAvatar(
-                  radius: 40,
-                  backgroundImage: const AssetImage('assets/images/avata1.png'),
-                  backgroundColor: Colors.grey[200],
+              GestureDetector(
+                onTap: () {
+                  final auth = context.read<AuthProvider>();
+                  if (auth.isLoggedIn) {
+                    _changeAvatar();
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Vui lòng đăng nhập để thay đổi avatar!')),
+                    );
+                  }
+                },
+                child: Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: const Color(0xFFFF3B30), width: 1.5),
+                  ),
+                  child: _buildAvatarImage(user?['avatarUrl']?.toString()),
                 ),
               ),
               const SizedBox(width: 16),
@@ -901,17 +1155,17 @@ class _HomeScreenState extends State<HomeScreen> {
                     Text(
                       name,
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.black87,
+                        color: Colors.black,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       email,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 14,
-                        color: Colors.grey,
+                        color: Colors.grey.shade500,
                       ),
                     ),
                   ],
@@ -919,51 +1173,92 @@ class _HomeScreenState extends State<HomeScreen> {
               )
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 28),
 
           // Menu sections
           _buildProfileMenuItem(
             title: 'My Orders',
             subtitle: 'Already have 12 orders',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyOrdersScreen()),
+              );
+            },
           ),
           const Divider(height: 1, color: Colors.black12),
           _buildProfileMenuItem(
             title: 'Shipping addresses',
-            subtitle: '3 addresses',
-            onTap: () {},
+            subtitle: addrSub,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const ShippingAddressesScreen()),
+              );
+            },
           ),
           const Divider(height: 1, color: Colors.black12),
           _buildProfileMenuItem(
             title: 'Payment methods',
-            subtitle: 'Visa  **34',
-            onTap: () {},
+            subtitle: cardSub,
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PaymentMethodsScreen()),
+              );
+            },
+          ),
+          const Divider(height: 1, color: Colors.black12),
+          _buildProfileMenuItem(
+            title: 'Promocodes',
+            subtitle: 'You have special promocodes',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const PromocodesScreen()),
+              );
+            },
+          ),
+          const Divider(height: 1, color: Colors.black12),
+          _buildProfileMenuItem(
+            title: 'My reviews',
+            subtitle: 'Reviews for ${ecommerce.myReviews.length} items',
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const MyReviewsScreen()),
+              );
+            },
           ),
           const Divider(height: 1, color: Colors.black12),
           _buildProfileMenuItem(
             title: 'Settings',
             subtitle: 'Notifications, password',
-            onTap: () {},
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              );
+            },
           ),
-          const SizedBox(height: 48),
+          const SizedBox(height: 36),
 
           // Logout Button
           SizedBox(
             width: double.infinity,
-            height: 52,
+            height: 48,
             child: ElevatedButton.icon(
               onPressed: _logout,
-              icon: const Icon(Icons.logout, color: Colors.white),
+              icon: const Icon(Icons.logout, color: Colors.white, size: 20),
               label: const Text(
                 'LOG OUT',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.5),
               ),
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFFE94560),
-                elevation: 2,
-                shadowColor: const Color(0xFFE94560).withOpacity(0.3),
+                backgroundColor: const Color(0xFFFF3B30),
+                elevation: 0,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(24),
                 ),
               ),
             ),
@@ -1010,6 +1305,13 @@ class _HomeScreenState extends State<HomeScreen> {
     final ecommerce = context.watch<EcommerceProvider>();
     final cartItems = ecommerce.cartItems;
     final double subtotal = ecommerce.cartSubtotal;
+    final promo = ecommerce.activePromo;
+    double discount = 0;
+    if (promo != null) {
+      final percent = (promo['discountPercent'] as num?)?.toDouble() ?? 0.0;
+      discount = subtotal * percent / 100.0;
+    }
+    final total = subtotal - discount;
 
     if (cartItems.isEmpty) {
       return Center(
@@ -1083,7 +1385,23 @@ class _HomeScreenState extends State<HomeScreen> {
                           topLeft: Radius.circular(8),
                           bottomLeft: Radius.circular(8),
                         ),
-                        child: _buildProductImage(item.thumbnail),
+                        child: GestureDetector(
+                          onTap: () {
+                            final Map<String, dynamic> productMap = {
+                              'id': item.productId,
+                              'productName': item.productName,
+                              'thumbnail': item.thumbnail,
+                              'salePrice': item.price,
+                            };
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => ProductDetailScreen(product: productMap),
+                              ),
+                            );
+                          },
+                          child: _buildProductImage(item.thumbnail),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -1102,23 +1420,65 @@ class _HomeScreenState extends State<HomeScreen> {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Expanded(
-                                      child: Text(
-                                        item.productName,
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 15,
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          final Map<String, dynamic> productMap = {
+                                            'id': item.productId,
+                                            'productName': item.productName,
+                                            'thumbnail': item.thumbnail,
+                                            'salePrice': item.price,
+                                          };
+                                          Navigator.push(
+                                            context,
+                                            MaterialPageRoute(
+                                              builder: (context) => ProductDetailScreen(product: productMap),
+                                            ),
+                                          );
+                                        },
+                                        child: Text(
+                                          item.productName,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
-                                    IconButton(
+                                    PopupMenuButton<String>(
+                                      icon: const Icon(Icons.more_vert, color: Colors.grey, size: 20),
                                       padding: EdgeInsets.zero,
                                       constraints: const BoxConstraints(),
-                                      icon: const Icon(Icons.delete_outline, color: Colors.grey, size: 20),
-                                      onPressed: () {
-                                        ecommerce.removeFromCart(index);
+                                      onSelected: (value) {
+                                        if (value == 'fav') {
+                                          final Map<String, dynamic> productMap = {
+                                            'id': item.productId,
+                                            'productName': item.productName,
+                                            'thumbnail': item.thumbnail,
+                                            'salePrice': item.price,
+                                          };
+                                          ecommerce.toggleFavorite(productMap);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Đã cập nhật yêu thích!'),
+                                              duration: Duration(seconds: 3),
+                                            ),
+                                          );
+                                        } else if (value == 'delete') {
+                                          ecommerce.removeFromCart(index);
+                                        }
                                       },
+                                      itemBuilder: (context) => [
+                                        const PopupMenuItem(
+                                          value: 'fav',
+                                          child: Text('Add to favorites', style: TextStyle(fontSize: 13)),
+                                        ),
+                                        const PopupMenuItem(
+                                          value: 'delete',
+                                          child: Text('Delete from the list', style: TextStyle(fontSize: 13)),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
@@ -1209,6 +1569,66 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           child: Column(
             children: [
+              // Promo Code Input Box
+              if (ecommerce.activePromo == null)
+                GestureDetector(
+                  onTap: () => _showPromoBottomSheet(context, ecommerce),
+                  child: Container(
+                    height: 48,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    margin: const EdgeInsets.only(bottom: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Enter your promo code',
+                          style: TextStyle(color: Colors.grey.shade500, fontSize: 14),
+                        ),
+                        Container(
+                          height: 36,
+                          width: 36,
+                          decoration: const BoxDecoration(
+                            color: Colors.black,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.arrow_forward, color: Colors.white, size: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                Container(
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  margin: const EdgeInsets.only(bottom: 16),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        ecommerce.activePromo!['code'] ?? '',
+                        style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      GestureDetector(
+                        onTap: () {
+                          ecommerce.removePromoCode();
+                        },
+                        child: const Icon(Icons.close, color: Colors.grey, size: 20),
+                      ),
+                    ],
+                  ),
+                ),
+
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -1217,7 +1637,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w500),
                   ),
                   Text(
-                    _formatPrice(subtotal),
+                    _formatPrice(total),
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87),
                   ),
                 ],
@@ -1228,23 +1648,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 height: 48,
                 child: ElevatedButton(
                   onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) {
-                        return AlertDialog(
-                          title: const Text('Checkout Success'),
-                          content: const Text('Thank you for your order! Your purchase was processed successfully.'),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                                ecommerce.clearCart();
-                              },
-                              child: const Text('Great!', style: TextStyle(color: Color(0xFFE94560))),
-                            )
-                          ],
-                        );
-                      },
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const CheckoutScreen(),
+                      ),
                     );
                   },
                   style: ElevatedButton.styleFrom(
@@ -1264,6 +1672,309 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  void _showPromoBottomSheet(BuildContext context, EcommerceProvider ecommerce) {
+    ecommerce.loadActivePromos();
+    final TextEditingController sheetPromoCtrl = TextEditingController();
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(30),
+          topRight: Radius.circular(30),
+        ),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 16,
+                right: 16,
+                top: 10,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Handle
+                  Center(
+                    child: Container(
+                      width: 60,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(3),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Text input for promo
+                  TextField(
+                    controller: sheetPromoCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Enter your promo code',
+                      hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                      suffixIcon: GestureDetector(
+                        onTap: () async {
+                          final code = sheetPromoCtrl.text.trim();
+                          if (code.isNotEmpty) {
+                            try {
+                              final success = await ecommerce.applyPromoCode(code);
+                              if (success && context.mounted) {
+                                Navigator.pop(context);
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Áp dụng mã giảm giá thành công!'),
+                                    duration: Duration(seconds: 3),
+                                  ),
+                                );
+                              }
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text('Mã giảm giá không hợp lệ: $e'),
+                                    backgroundColor: Colors.red,
+                                    duration: const Duration(seconds: 3),
+                                  ),
+                                );
+                              }
+                            }
+                          }
+                        },
+                        child: Container(
+                          margin: const EdgeInsets.all(8),
+                          decoration: const BoxDecoration(
+                            color: Colors.black,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.arrow_forward, color: Colors.white, size: 14),
+                        ),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade300),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: Colors.grey.shade400),
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // Title
+                  const Text(
+                    'Your Promo Codes',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                      color: Colors.black,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Promos list
+                  Consumer<EcommerceProvider>(
+                    builder: (context, provider, child) {
+                      final promos = provider.activePromosList.isNotEmpty
+                          ? provider.activePromosList
+                          : [
+                              {
+                                'code': 'mypromocode2020',
+                                'discountPercent': 10,
+                                'description': 'Personal offer',
+                                'daysRemaining': 6
+                              },
+                              {
+                                'code': 'summer2020',
+                                'discountPercent': 15,
+                                'description': 'Summer Sale',
+                                'daysRemaining': 23
+                              },
+                              {
+                                'code': 'personal2020',
+                                'discountPercent': 22,
+                                'description': 'Personal offer',
+                                'daysRemaining': 6
+                              },
+                            ];
+
+                      return Column(
+                        children: promos.map<Widget>((promo) {
+                          final int pct = (promo['discountPercent'] as num?)?.toInt() ?? 0;
+                          final String code = promo['code'] ?? '';
+                          final String desc = promo['description'] ?? '';
+                          final int days = (promo['daysRemaining'] as num?)?.toInt() ?? (promo['days_remaining'] as num?)?.toInt() ?? 0;
+                          
+                          // Determine color/design based on pct
+                          Color badgeColor = const Color(0xFFFF3B30); // Default red
+                          if (pct == 15) {
+                            badgeColor = const Color(0xFFFF9500); // Orange / beachy vibe
+                          } else if (pct == 22) {
+                            badgeColor = const Color(0xFF1A1A2E); // Black/Navy
+                          }
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 16),
+                            height: 80,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.04),
+                                  blurRadius: 6,
+                                  offset: const Offset(0, 3),
+                                )
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                // Left badge
+                                Container(
+                                  width: 80,
+                                  decoration: BoxDecoration(
+                                    color: badgeColor,
+                                    borderRadius: const BorderRadius.only(
+                                      topLeft: Radius.circular(8),
+                                      bottomLeft: Radius.circular(8),
+                                    ),
+                                  ),
+                                  child: Center(
+                                    child: RichText(
+                                      textAlign: TextAlign.center,
+                                      text: TextSpan(
+                                        children: [
+                                          TextSpan(
+                                            text: '$pct',
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 24,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                          const TextSpan(
+                                            text: '%\noff',
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold,
+                                              height: 1.1,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+
+                                // Details
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        desc,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        code,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.black54,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '$days days remaining',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+
+                                // Apply button
+                                Padding(
+                                  padding: const EdgeInsets.only(right: 12),
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFFFF3B30),
+                                      foregroundColor: Colors.white,
+                                      elevation: 0,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                                      minimumSize: const Size(64, 30),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(15),
+                                      ),
+                                    ),
+                                    onPressed: () async {
+                                      try {
+                                        final success = await ecommerce.applyPromoCode(code);
+                                        if (success && context.mounted) {
+                                          Navigator.pop(context);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Áp dụng mã giảm giá thành công!'),
+                                              duration: Duration(seconds: 3),
+                                            ),
+                                          );
+                                        }
+                                      } catch (e) {
+                                        if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(
+                                              content: Text('Lỗi: $e'),
+                                              backgroundColor: Colors.red,
+                                              duration: const Duration(seconds: 3),
+                                            ),
+                                          );
+                                        }
+                                      }
+                                    },
+                                    child: const Text(
+                                      'Apply',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 }

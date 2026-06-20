@@ -84,7 +84,7 @@ class ApiService {
   }
 
   static Future<List<dynamic>> getPublishedProducts() async {
-    final res = await http.get(Uri.parse('$baseUrl/products/published'), headers: _getHeaders);
+    final res = await http.get(Uri.parse('$baseUrl/products'), headers: _getHeaders);
     return jsonDecode(res.body) as List;
   }
 
@@ -440,5 +440,321 @@ class ApiService {
       throw Exception(body['message'] ?? 'Lỗi tải tệp lên: ${response.statusCode}');
     }
   }
+
+  // ─── PROMO CODES DATABASE APIS ──────────────────────
+
+  static Future<List<dynamic>> getActivePromos() async {
+    final res = await http.get(
+      Uri.parse('$baseUrl/promos'),
+      headers: _getHeaders,
+    );
+    return jsonDecode(res.body) as List;
+  }
+
+  static Future<Map<String, dynamic>> validatePromo(String code) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/promos/validate'),
+      headers: _headers,
+      body: jsonEncode({'code': code}),
+    );
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    } else {
+      final body = jsonDecode(res.body);
+      throw Exception(body['message'] ?? 'Mã giảm giá không hợp lệ hoặc đã hết hạn');
+    }
+  }
+
+  // ─── SHIPPING ADDRESSES ────────────────────────────────
+
+  static Future<List<dynamic>> getAddresses() async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final res = await http.get(
+      Uri.parse('$baseUrl/addresses'),
+      headers: {..._getHeaders, 'Authorization': 'Bearer $token'},
+    );
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return jsonDecode(res.body) as List;
+    }
+    throw Exception('Lỗi tải địa chỉ: ${res.statusCode}');
+  }
+
+  static Future<Map<String, dynamic>> addAddress({
+    required String fullName,
+    required String phoneNumber,
+    required String addressLine1,
+    required String city,
+    required String state,
+    required String zipCode,
+    required String country,
+    bool isDefault = false,
+  }) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final res = await http.post(
+      Uri.parse('$baseUrl/addresses'),
+      headers: {..._headers, 'Authorization': 'Bearer $token'},
+      body: jsonEncode({
+        'fullName': fullName,
+        'phoneNumber': phoneNumber,
+        'addressLine1': addressLine1,
+        'city': city,
+        'state': state,
+        'zipCode': zipCode,
+        'country': country,
+        'isDefault': isDefault,
+      }),
+    );
+    return _handle(res);
+  }
+
+  static Future<Map<String, dynamic>> setDefaultAddress(String id) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final res = await http.put(
+      Uri.parse('$baseUrl/addresses/$id/default'),
+      headers: {..._getHeaders, 'Authorization': 'Bearer $token'},
+    );
+    return _handle(res);
+  }
+
+  static Future<void> deleteAddress(String id) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    await http.delete(
+      Uri.parse('$baseUrl/addresses/$id'),
+      headers: {..._getHeaders, 'Authorization': 'Bearer $token'},
+    );
+  }
+
+  // ─── PAYMENT CARDS ─────────────────────────────────────
+
+  static Future<List<dynamic>> getPaymentCards() async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final res = await http.get(
+      Uri.parse('$baseUrl/payment-cards'),
+      headers: {..._getHeaders, 'Authorization': 'Bearer $token'},
+    );
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return jsonDecode(res.body) as List;
+    }
+    throw Exception('Lỗi tải thẻ: ${res.statusCode}');
+  }
+
+  static Future<Map<String, dynamic>> addPaymentCard({
+    required String cardHolderName,
+    required String cardNumber,
+    required String brand,
+    required int expiryMonth,
+    required int expiryYear,
+    bool isDefault = false,
+  }) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final res = await http.post(
+      Uri.parse('$baseUrl/payment-cards'),
+      headers: {..._headers, 'Authorization': 'Bearer $token'},
+      body: jsonEncode({
+        'cardHolderName': cardHolderName,
+        'cardNumber': cardNumber,
+        'brand': brand,
+        'expiryMonth': expiryMonth,
+        'expiryYear': expiryYear,
+        'isDefault': isDefault,
+      }),
+    );
+    return _handle(res);
+  }
+
+  static Future<Map<String, dynamic>> setDefaultCard(String id) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final res = await http.put(
+      Uri.parse('$baseUrl/payment-cards/$id/default'),
+      headers: {..._getHeaders, 'Authorization': 'Bearer $token'},
+    );
+    return _handle(res);
+  }
+
+  static Future<void> deletePaymentCard(String id) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    await http.delete(
+      Uri.parse('$baseUrl/payment-cards/$id'),
+      headers: {..._getHeaders, 'Authorization': 'Bearer $token'},
+    );
+  }
+
+  // ─── PLACE ORDER ───────────────────────────────────────
+
+  static Future<Map<String, dynamic>> placeOrder({
+    String? shippingAddressId,
+    String? paymentCardId,
+    String? couponId,
+    String? deliveryMethod,
+    double? deliveryFee,
+  }) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final body = <String, dynamic>{};
+    if (shippingAddressId != null) body['shippingAddressId'] = shippingAddressId;
+    if (paymentCardId != null) body['paymentCardId'] = paymentCardId;
+    if (couponId != null) body['couponId'] = couponId;
+    if (deliveryMethod != null) body['deliveryMethod'] = deliveryMethod;
+    if (deliveryFee != null) body['deliveryFee'] = deliveryFee;
+    final res = await http.post(
+      Uri.parse('$baseUrl/orders'),
+      headers: {..._headers, 'Authorization': 'Bearer $token'},
+      body: jsonEncode(body),
+    );
+    return _handle(res);
+  }
+
+  // ─── USER SETTINGS & ORDERS ───────────────────────────
+
+  static Future<Map<String, dynamic>> updateProfileSettings({
+    String? fullName,
+    String? dateOfBirth,
+    bool? salesNotify,
+    bool? newArrivalsNotify,
+    bool? deliveryStatusNotify,
+    String? avatarUrl,
+  }) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final body = <String, dynamic>{};
+    if (fullName != null) body['fullName'] = fullName;
+    if (dateOfBirth != null) body['dateOfBirth'] = dateOfBirth;
+    if (salesNotify != null) body['salesNotify'] = salesNotify;
+    if (newArrivalsNotify != null) body['newArrivalsNotify'] = newArrivalsNotify;
+    if (deliveryStatusNotify != null) body['deliveryStatusNotify'] = deliveryStatusNotify;
+    if (avatarUrl != null) body['avatarUrl'] = avatarUrl;
+
+    final res = await http.put(
+      Uri.parse('$baseUrl/users/me'),
+      headers: {..._headers, 'Authorization': 'Bearer $token'},
+      body: jsonEncode(body),
+    );
+    return _handle(res);
+  }
+
+  static Future<Map<String, dynamic>> changePassword({
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final res = await http.put(
+      Uri.parse('$baseUrl/users/me/password'),
+      headers: {..._headers, 'Authorization': 'Bearer $token'},
+      body: jsonEncode({
+        'oldPassword': oldPassword,
+        'newPassword': newPassword,
+      }),
+    );
+    return _handle(res);
+  }
+
+  static Future<List<dynamic>> getOrders() async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final res = await http.get(
+      Uri.parse('$baseUrl/orders'),
+      headers: {..._getHeaders, 'Authorization': 'Bearer $token'},
+    );
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return jsonDecode(res.body) as List;
+    }
+    throw Exception('Lỗi tải đơn hàng: ${res.statusCode}');
+  }
+
+  static Future<Map<String, dynamic>> getOrder(String orderId) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final res = await http.get(
+      Uri.parse('$baseUrl/orders/$orderId'),
+      headers: {..._getHeaders, 'Authorization': 'Bearer $token'},
+    );
+    return _handle(res);
+  }
+
+  // ─── SEARCH ────────────────────────────────────────────
+
+  /// Text search: GET /api/search?q=keyword
+  static Future<Map<String, dynamic>> searchProducts(String keyword) async {
+    final encodedQ = Uri.encodeQueryComponent(keyword);
+    final res = await http.get(
+      Uri.parse('$baseUrl/search?q=$encodedQ'),
+      headers: _getHeaders,
+    );
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return jsonDecode(res.body) as Map<String, dynamic>;
+    }
+    final body = jsonDecode(res.body);
+    throw Exception(body['message'] ?? 'Search failed: ${res.statusCode}');
+  }
+
+  /// Image/visual search: POST /api/search/image (multipart)
+  static Future<Map<String, dynamic>> searchByImage(
+    List<int> imageBytes,
+    String filename,
+  ) async {
+    final uri = Uri.parse('$baseUrl/search/image');
+    final request = http.MultipartRequest('POST', uri);
+    request.headers['ngrok-skip-browser-warning'] = 'true';
+
+    final ext = filename.split('.').last.toLowerCase();
+    String subtype = 'jpeg';
+    if (ext == 'png') subtype = 'png';
+    if (ext == 'gif') subtype = 'gif';
+    if (ext == 'webp') subtype = 'webp';
+
+    request.files.add(http.MultipartFile.fromBytes(
+      'image',
+      imageBytes,
+      filename: filename,
+      contentType: MediaType('image', subtype),
+    ));
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    final body = jsonDecode(response.body);
+    throw Exception(body['message'] ?? 'Visual search failed: ${response.statusCode}');
+  }
+
+  static Future<List<dynamic>> getMyReviews() async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final res = await http.get(
+      Uri.parse('$reviewBaseUrl/reviews/my-reviews'),
+      headers: {
+        ..._getHeaders,
+        'Authorization': 'Bearer $token',
+      },
+    );
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return jsonDecode(res.body) as List;
+    }
+    throw Exception('Lỗi tải đánh giá: ${res.statusCode}');
+  }
+
+  static Future<Map<String, dynamic>> cancelOrder(String orderId) async {
+    final token = await getToken();
+    if (token == null) throw Exception('Chưa đăng nhập');
+    final res = await http.put(
+      Uri.parse('$baseUrl/orders/$orderId/cancel'),
+      headers: {
+        ..._headers,
+        'Authorization': 'Bearer $token',
+      },
+    );
+    return _handle(res);
+  }
 }
+
 

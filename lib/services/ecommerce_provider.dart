@@ -52,8 +52,14 @@ class ProductReview {
 class EcommerceProvider with ChangeNotifier {
   List<CartItem> _cartItems = [];
   Map<String, List<ProductReview>> _reviews = {};
+  Map<String, dynamic>? _activePromo;
+  List<dynamic> _activePromosList = [];
+  List<dynamic> _myReviews = [];
 
   List<CartItem> get cartItems => _cartItems;
+  Map<String, dynamic>? get activePromo => _activePromo;
+  List<dynamic> get activePromosList => _activePromosList;
+  List<dynamic> get myReviews => _myReviews;
 
   int get cartCount {
     return _cartItems.fold(0, (sum, item) => sum + item.quantity);
@@ -61,6 +67,15 @@ class EcommerceProvider with ChangeNotifier {
 
   double get cartSubtotal {
     return _cartItems.fold(0.0, (sum, item) => sum + (item.price * item.quantity));
+  }
+
+  double get cartTotal {
+    final sub = cartSubtotal;
+    if (_activePromo != null) {
+      final discountPercent = (_activePromo!['discountPercent'] as num?)?.toDouble() ?? 0.0;
+      return sub * (1.0 - discountPercent / 100.0);
+    }
+    return sub;
   }
 
   // ─── CART DATABASE ACTIONS ───────────────────────────
@@ -139,10 +154,40 @@ class EcommerceProvider with ChangeNotifier {
           await ApiService.removeCartItem(itemId: item.id!);
         }
       }
+      removePromoCode();
       await loadCart();
     } catch (e) {
       debugPrint('Error clearing cart: $e');
     }
+  }
+
+  // ─── PROMO CODES DATABASE ACTIONS ────────────────────
+
+  Future<void> loadActivePromos() async {
+    try {
+      final list = await ApiService.getActivePromos();
+      _activePromosList = list;
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading active promos: $e');
+    }
+  }
+
+  Future<bool> applyPromoCode(String code) async {
+    try {
+      final data = await ApiService.validatePromo(code);
+      _activePromo = data;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error applying promo code: $e');
+      rethrow;
+    }
+  }
+
+  void removePromoCode() {
+    _activePromo = null;
+    notifyListeners();
   }
 
   // ─── REVIEWS DATABASE ACTIONS ────────────────────────
@@ -370,4 +415,148 @@ class EcommerceProvider with ChangeNotifier {
   bool isFavorite(String productId) {
     return _favoriteProductIds.contains(productId);
   }
+
+  // ─── SHIPPING ADDRESSES ──────────────────────────────────
+  List<dynamic> _addresses = [];
+  List<dynamic> get addresses => _addresses;
+
+  Future<void> loadAddresses() async {
+    try {
+      _addresses = await ApiService.getAddresses();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading addresses: $e');
+    }
+  }
+
+  Future<void> addAddress({
+    required String fullName,
+    required String phoneNumber,
+    required String addressLine1,
+    required String city,
+    required String state,
+    required String zipCode,
+    required String country,
+    bool isDefault = false,
+  }) async {
+    await ApiService.addAddress(
+      fullName: fullName,
+      phoneNumber: phoneNumber,
+      addressLine1: addressLine1,
+      city: city,
+      state: state,
+      zipCode: zipCode,
+      country: country,
+      isDefault: isDefault,
+    );
+    await loadAddresses();
+  }
+
+  Future<void> setDefaultAddress(String id) async {
+    await ApiService.setDefaultAddress(id);
+    await loadAddresses();
+  }
+
+  Future<void> deleteAddress(String id) async {
+    await ApiService.deleteAddress(id);
+    await loadAddresses();
+  }
+
+  Map<String, dynamic>? get defaultAddress {
+    try {
+      if (_addresses.isEmpty) return null;
+      final def = _addresses.firstWhere(
+        (a) => a['isDefault'] == true,
+        orElse: () => _addresses.first,
+      );
+      return def as Map<String, dynamic>?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ─── PAYMENT CARDS ────────────────────────────────────────
+  List<dynamic> _paymentCards = [];
+  List<dynamic> get paymentCards => _paymentCards;
+
+  Future<void> loadPaymentCards() async {
+    try {
+      _paymentCards = await ApiService.getPaymentCards();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading payment cards: $e');
+    }
+  }
+
+  Future<void> addPaymentCard({
+    required String cardHolderName,
+    required String cardNumber,
+    required String brand,
+    required int expiryMonth,
+    required int expiryYear,
+    bool isDefault = false,
+  }) async {
+    await ApiService.addPaymentCard(
+      cardHolderName: cardHolderName,
+      cardNumber: cardNumber,
+      brand: brand,
+      expiryMonth: expiryMonth,
+      expiryYear: expiryYear,
+      isDefault: isDefault,
+    );
+    await loadPaymentCards();
+  }
+
+  Future<void> setDefaultCard(String id) async {
+    await ApiService.setDefaultCard(id);
+    await loadPaymentCards();
+  }
+
+  Future<void> deletePaymentCard(String id) async {
+    await ApiService.deletePaymentCard(id);
+    await loadPaymentCards();
+  }
+
+  Map<String, dynamic>? get defaultCard {
+    try {
+      if (_paymentCards.isEmpty) return null;
+      final def = _paymentCards.firstWhere(
+        (c) => c['isDefault'] == true,
+        orElse: () => _paymentCards.first,
+      );
+      return def as Map<String, dynamic>?;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // ─── PLACE ORDER ──────────────────────────────────────────
+  Future<Map<String, dynamic>> placeOrder({
+    String? deliveryMethod,
+    double? deliveryFee,
+  }) async {
+    final addr = defaultAddress;
+    final card = defaultCard;
+    final promoId = _activePromo?['id']?.toString();
+    final result = await ApiService.placeOrder(
+      shippingAddressId: addr?['id']?.toString(),
+      paymentCardId: card?['id']?.toString(),
+      couponId: promoId,
+      deliveryMethod: deliveryMethod,
+      deliveryFee: deliveryFee,
+    );
+    removePromoCode();
+    return result;
+  }
+
+  // ─── MY REVIEWS ───────────────────────────────────────────
+  Future<void> loadMyReviews() async {
+    try {
+      _myReviews = await ApiService.getMyReviews();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading my reviews: $e');
+    }
+  }
 }
+

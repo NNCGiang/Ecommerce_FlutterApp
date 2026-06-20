@@ -60,12 +60,12 @@
 //       );
 //       if (!mounted) return;
 //       ScaffoldMessenger.of(context).showSnackBar(
-//         const SnackBar(content: Text('Đăng nhập thành công!')),
+//         const SnackBar(duration: const Duration(seconds: 3), content: Text('Đăng nhập thành công!')),
 //       );
 //       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
 //     } else {
 //       if (!mounted) return;
-//       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(auth.error ?? 'Lỗi')));
+//       ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 3), content: Text(auth.error ?? 'Lỗi')));
 //     }
 //   }
 
@@ -100,7 +100,7 @@
 //         );
 //         if (!mounted) return;
 //         ScaffoldMessenger.of(context).showSnackBar(
-//           const SnackBar(content: Text('Đăng nhập thành công!')),
+//           const SnackBar(duration: const Duration(seconds: 3), content: Text('Đăng nhập thành công!')),
 //         );
 //         Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HomeScreen()));
 //       } else {
@@ -120,12 +120,12 @@
 //           });
 //         } else {
 //           if (!mounted) return;
-//           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errMsg)));
+//           ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 3), content: Text(errMsg)));
 //         }
 //       }
 //     } catch (e) {
 //       if (!mounted) return;
-//       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google lỗi: $e')));
+//       ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 3), content: Text('Google lỗi: $e')));
 //     }
 //   }
 
@@ -137,7 +137,7 @@
 //         _emailCtrl.text = acc['email'] ?? '';
 //       });
 //       ScaffoldMessenger.of(context).showSnackBar(
-//         SnackBar(content: Text('Đã chọn tài khoản ${acc['email']}. Vui lòng nhập mật khẩu.')),
+//         SnackBar(duration: const Duration(seconds: 3), content: Text('Đã chọn tài khoản ${acc['email']}. Vui lòng nhập mật khẩu.')),
 //       );
 //     }
 //   }
@@ -177,7 +177,7 @@
 
 //         if (!mounted) return;
 //         ScaffoldMessenger.of(context).showSnackBar(
-//           const SnackBar(content: Text('Đăng nhập thành công!')),
+//           const SnackBar(duration: const Duration(seconds: 3), content: Text('Đăng nhập thành công!')),
 //         );
 //         Navigator.pushReplacement(
 //           context,
@@ -202,13 +202,13 @@
 //           });
 //         } else {
 //           if (!mounted) return;
-//           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errMsg)));
+//           ScaffoldMessenger.of(context).showSnackBar(SnackBar(duration: const Duration(seconds: 3), content: Text(errMsg)));
 //         }
 //       }
 //     } catch (e) {
 //       if (!mounted) return;
 //       ScaffoldMessenger.of(context).showSnackBar(
-//         SnackBar(content: Text('Facebook lỗi: $e')),
+//         SnackBar(duration: const Duration(seconds: 3), content: Text('Facebook lỗi: $e')),
 //       );
 //     }
 //   }
@@ -488,7 +488,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
     if (email.isEmpty || pass.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng nhập email và mật khẩu')),
+        const SnackBar(duration: const Duration(seconds: 3), content: Text('Vui lòng nhập email và mật khẩu')),
       );
       return;
     }
@@ -642,8 +642,8 @@ class _LoginScreenState extends State<LoginScreen> {
               // Đăng nhập Google
               OutlinedButton.icon(
                 onPressed: _loading ? null : _loginGoogle,
-                icon: Image.network(
-                  'https://www.google.com/favicon.ico',
+                icon: Image.asset(
+                  'assets/images/gg.png',
                   width: 20,
                   height: 20,
                 ),
@@ -664,7 +664,11 @@ class _LoginScreenState extends State<LoginScreen> {
               // Đăng nhập Facebook
               OutlinedButton.icon(
                 onPressed: _loading ? null : _loginFacebook,
-                icon: const Icon(Icons.facebook, color: Color(0xFF1877F2)),
+                icon: Image.asset(
+                  'assets/images/fb.png',
+                  width: 20,
+                  height: 20,
+                ),
                 label: const Text(
                   'Đăng nhập với Facebook',
                   style: TextStyle(color: Colors.white),

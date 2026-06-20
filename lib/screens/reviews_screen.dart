@@ -244,7 +244,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 if (!currentAuth.isLoggedIn) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Vui lòng đăng nhập trước khi viết đánh giá!'),
+                      duration: const Duration(seconds: 3),content: Text('Vui lòng đăng nhập trước khi viết đánh giá!'),
                       backgroundColor: Colors.redAccent,
                     ),
                   );
@@ -451,7 +451,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                     }
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Lỗi chụp ảnh: $e'), backgroundColor: Colors.redAccent),
+                      SnackBar(duration: const Duration(seconds: 3), content: Text('Lỗi chụp ảnh: $e'), backgroundColor: Colors.redAccent),
                     );
                   }
                 },
@@ -470,7 +470,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                     }
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Lỗi quay video: $e'), backgroundColor: Colors.redAccent),
+                      SnackBar(duration: const Duration(seconds: 3), content: Text('Lỗi quay video: $e'), backgroundColor: Colors.redAccent),
                     );
                   }
                 },
@@ -489,7 +489,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                     }
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Lỗi chọn ảnh: $e'), backgroundColor: Colors.redAccent),
+                      SnackBar(duration: const Duration(seconds: 3), content: Text('Lỗi chọn ảnh: $e'), backgroundColor: Colors.redAccent),
                     );
                   }
                 },
@@ -508,7 +508,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                     }
                   } catch (e) {
                     ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Lỗi chọn video: $e'), backgroundColor: Colors.redAccent),
+                      SnackBar(duration: const Duration(seconds: 3), content: Text('Lỗi chọn video: $e'), backgroundColor: Colors.redAccent),
                     );
                   }
                 },
@@ -791,13 +791,13 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                               onPressed: () async {
                                 if (selectedRating == 0) {
                                   ScaffoldMessenger.of(sheetContext).showSnackBar(
-                                    const SnackBar(content: Text('Please select a star rating!')),
+                                    const SnackBar(duration: const Duration(seconds: 3), content: Text('Please select a star rating!')),
                                   );
                                   return;
                                 }
                                 if (reviewTextController.text.trim().isEmpty) {
                                   ScaffoldMessenger.of(sheetContext).showSnackBar(
-                                    const SnackBar(content: Text('Please write your review feedback!')),
+                                    const SnackBar(duration: const Duration(seconds: 3), content: Text('Please write your review feedback!')),
                                   );
                                   return;
                                 }
@@ -853,7 +853,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                     Navigator.of(sheetContext).pop();
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
-                                        content: Text(existingReview != null
+                                        duration: const Duration(seconds: 3),content: Text(existingReview != null
                                             ? 'Thank you! Your review has been updated.'
                                             : 'Thank you! Your review has been submitted.'),
                                         backgroundColor: const Color(0xFF2E7D32),
@@ -864,7 +864,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(sheetContext).showSnackBar(
                                       SnackBar(
-                                        content: Text(existingReview != null
+                                        duration: const Duration(seconds: 3),content: Text(existingReview != null
                                             ? 'Lỗi cập nhật đánh giá: $e'
                                             : 'Lỗi gửi đánh giá: $e'),
                                       ),

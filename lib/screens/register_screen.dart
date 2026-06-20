@@ -40,14 +40,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Vui lòng điền đầy đủ thông tin')),
+        const SnackBar(duration: const Duration(seconds: 3), content: Text('Vui lòng điền đầy đủ thông tin')),
       );
       return;
     }
 
     if (!_isValidEmail(email)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Email không hợp lệ')),
+        const SnackBar(duration: const Duration(seconds: 3), content: Text('Email không hợp lệ')),
       );
       return;
     }
@@ -66,7 +66,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Đăng ký thành công! Đang chuyển sang trang Đăng nhập...'),
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 3),
         ),
       );
       await Future.delayed(const Duration(seconds: 2));
@@ -77,7 +77,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(auth.error ?? 'Đăng ký thất bại')),
+        SnackBar(duration: const Duration(seconds: 3), content: Text(auth.error ?? 'Đăng ký thất bại')),
       );
     }
   }
@@ -115,7 +115,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Đăng ký thành công! Đang chuyển sang trang Đăng nhập...'),
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 3),
           ),
         );
         await Future.delayed(const Duration(seconds: 2));
@@ -126,12 +126,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(auth.error ?? 'Đăng ký thất bại')),
+          SnackBar(duration: const Duration(seconds: 3), content: Text(auth.error ?? 'Đăng ký thất bại')),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi Google: $e')),
+        SnackBar(duration: const Duration(seconds: 3), content: Text('Lỗi Google: $e')),
       );
     }
   }
@@ -170,7 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Đăng ký thành công! Đang chuyển sang trang Đăng nhập...'),
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 3),
           ),
         );
         await Future.delayed(const Duration(seconds: 2));
@@ -181,12 +181,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(auth.error ?? 'Đăng ký thất bại')),
+          SnackBar(duration: const Duration(seconds: 3), content: Text(auth.error ?? 'Đăng ký thất bại')),
         );
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Lỗi Facebook: $e')),
+        SnackBar(duration: const Duration(seconds: 3), content: Text('Lỗi Facebook: $e')),
       );
     }
   }
@@ -401,13 +401,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       children: [
                         // Google button
                         _buildSocialButton(
-                          icon: Image.network('https://www.google.com/favicon.ico', width: 24, height: 24),
+                          icon: Image.asset('assets/images/gg.png', width: 24, height: 24),
                           onTap: _googleRegister,
                         ),
                         const SizedBox(width: 16),
                         // Facebook button
                         _buildSocialButton(
-                          icon: const Icon(Icons.facebook, color: Color(0xFF1877F2), size: 28),
+                          icon: Image.asset('assets/images/fb.png', width: 28, height: 28),
                           onTap: _facebookRegister,
                         ),
                       ],
